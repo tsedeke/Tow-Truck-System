@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Towbook | Cloud Dispatch Platform</title>
+    <link rel="stylesheet" href="styles.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <div class="brand">towbook<span class="brand-cloud">cloud</span></div>
+        <nav class="primary-nav">
+          <a class="nav-link active" href="#" data-view-target="dashboard">Dashboard</a>
+          <a class="nav-link" href="#" data-view-target="dispatching">Dispatching</a>
+          <a class="nav-link" href="#" data-view-target="impounds">Impounds</a>
+          <a class="nav-link" href="#" data-view-target="accounts">Accounts</a>
+          <a class="nav-link" href="#" data-view-target="reports">Reports</a>
+          <a class="nav-link" href="#" data-view-target="settings">Settings</a>
+        </nav>
+        <div class="user-meta">
+          <span class="support">Need help? <strong>Contact Towbook Cloud</strong></span>
+          <div class="user-info">
+            <div class="user-name">Tsedeke Girma</div>
+            <div class="user-role">Dispatcher</div>
+          </div>
+          <div class="user-status">Online</div>
+        </div>
+      </header>
+
+      <main class="view dashboard-view" data-view="dashboard">
+        <section class="welcome-card">
+          <div>
+            <h1>Good morning, <span>Tsedeke Girma</span>.</h1>
+            <p>Welcome to Towbook Cloud! Here's what's happening with your fleet.</p>
+          </div>
+          <button class="primary-action" id="go-to-dispatch">New Dispatch</button>
+        </section>
+
+        <section class="dispatch-overview" aria-labelledby="dispatch-overview-heading">
+          <div class="section-heading">
+            <h2 id="dispatch-overview-heading">Company Dispatch Overview</h2>
+            <div class="meta">Last updated at <span class="update-time">7:52:55 AM</span></div>
+          </div>
+          <div class="metric-grid" id="status-metrics"></div>
+        </section>
+
+        <section class="live-board" id="dashboard-dispatching">
+          <header class="section-heading">
+            <h2>Live Dispatch Board</h2>
+            <div class="controls">
+              <label class="filter">
+                <span>Status</span>
+                <select id="status-filter">
+                  <option value="all">All</option>
+                  <option value="waiting">Waiting</option>
+                  <option value="dispatched">Dispatched</option>
+                  <option value="enroute">En Route</option>
+                  <option value="onscene">On Scene</option>
+                  <option value="towing">Towing</option>
+                  <option value="completed">Completed</option>
+                  <option value="canceled">Canceled</option>
+                </select>
+              </label>
+              <button class="secondary-action" id="refresh-board">Refresh</button>
+            </div>
+          </header>
+          <div class="board-content">
+            <table class="data-table" aria-describedby="dashboard-dispatching">
+              <thead>
+                <tr>
+                  <th>Ticket</th>
+                  <th>Customer</th>
+                  <th>Vehicle</th>
+                  <th>Location</th>
+                  <th>Driver</th>
+                  <th>Status</th>
+                  <th>ETA</th>
+                </tr>
+              </thead>
+              <tbody id="dashboard-dispatch-rows"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <div class="grid-panels">
+          <section class="panel" id="impounds">
+            <header class="section-heading">
+              <h2>Impound Yard Snapshot</h2>
+              <a class="link" href="#">View All</a>
+            </header>
+            <ul class="impound-list" id="impound-list"></ul>
+          </section>
+
+          <section class="panel" id="reports">
+            <header class="section-heading">
+              <h2>Analytics &amp; Reporting</h2>
+              <a class="link" href="#">Generate Report</a>
+            </header>
+            <div class="reports">
+              <article class="report-card">
+                <h3>Revenue This Month</h3>
+                <p class="highlight" id="report-revenue"></p>
+                <p class="trend positive">▲ 12% vs last month</p>
+              </article>
+              <article class="report-card">
+                <h3>Average Response Time</h3>
+                <p class="highlight" id="report-response"></p>
+                <p class="trend negative">▼ 4% vs last week</p>
+              </article>
+              <article class="report-card">
+                <h3>Active Contracts</h3>
+                <p class="highlight" id="report-contracts"></p>
+                <p class="trend stable">■ No change</p>
+              </article>
+            </div>
+          </section>
+        </div>
+      </main>
+
+      <main class="view dispatch-view" data-view="dispatching" hidden>
+        <section class="dispatch-hero">
+          <div>
+            <h1>Dispatching Center</h1>
+            <p>Coordinate calls, drivers, and customer feedback in real time.</p>
+          </div>
+          <div class="dispatch-meta" role="status" aria-live="polite">
+            <div class="meta-block">
+              <span class="meta-label">Shift</span>
+              <span class="meta-value">Morning · 7:00a – 3:00p</span>
+            </div>
+            <div class="meta-block">
+              <span class="meta-label">Live Calls</span>
+              <span class="meta-value" id="live-call-count">0</span>
+            </div>
+          </div>
+        </section>
+
+        <nav class="dispatch-tabs" role="tablist">
+          <button
+            class="dispatch-tab active"
+            type="button"
+            role="tab"
+            aria-selected="true"
+            data-dispatch-tab="view-calls"
+          >
+            View Calls
+          </button>
+          <button
+            class="dispatch-tab"
+            type="button"
+            role="tab"
+            aria-selected="false"
+            data-dispatch-tab="driver-messaging"
+          >
+            Driver Messaging
+          </button>
+          <button
+            class="dispatch-tab"
+            type="button"
+            role="tab"
+            aria-selected="false"
+            data-dispatch-tab="surveys"
+          >
+            Surveys
+          </button>
+        </nav>
+
+        <section class="dispatch-panel" data-dispatch-panel="view-calls">
+          <form class="dispatch-filters" id="dispatch-filter-form">
+            <div class="form-field">
+              <label for="filter-customer">Customer</label>
+              <input id="filter-customer" name="customer" type="text" placeholder="Search customer" />
+            </div>
+            <div class="form-field">
+              <label for="filter-vehicle">Vehicle</label>
+              <input id="filter-vehicle" name="vehicle" type="text" placeholder="Plate, make or model" />
+            </div>
+            <div class="form-field">
+              <label for="filter-driver">Driver / Dispatcher</label>
+              <select id="filter-driver" name="driver">
+                <option value="">All personnel</option>
+              </select>
+            </div>
+            <div class="form-field">
+              <label for="filter-zone">Zone</label>
+              <select id="filter-zone" name="zone">
+                <option value="">All zones</option>
+              </select>
+            </div>
+            <div class="form-field date-range">
+              <label for="filter-start">Date Range</label>
+              <div class="date-inputs">
+                <input id="filter-start" name="startDate" type="date" />
+                <span aria-hidden="true">to</span>
+                <input id="filter-end" name="endDate" type="date" />
+              </div>
+            </div>
+            <div class="form-actions">
+              <button type="submit" class="primary-action">Get Results</button>
+              <button type="reset" class="secondary-action">Cancel</button>
+            </div>
+          </form>
+
+          <div class="call-summary" id="call-summary" aria-live="polite"></div>
+
+          <div class="call-sections">
+            <article class="call-panel" data-call-section="active">
+              <header class="panel-header">
+                <h2>Active Calls</h2>
+                <span class="badge" data-call-count="active">0</span>
+              </header>
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Call #</th>
+                    <th>Customer</th>
+                    <th>Vehicle</th>
+                    <th>Zone</th>
+                    <th>Driver</th>
+                    <th>Dispatcher</th>
+                    <th>Opened</th>
+                    <th>Status</th>
+                    <th>ETA</th>
+                  </tr>
+                </thead>
+                <tbody data-call-body="active"></tbody>
+              </table>
+            </article>
+
+            <article class="call-panel" data-call-section="canceled">
+              <header class="panel-header">
+                <h2>Canceled</h2>
+                <span class="badge" data-call-count="canceled">0</span>
+              </header>
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Call #</th>
+                    <th>Customer</th>
+                    <th>Reason</th>
+                    <th>Dispatcher</th>
+                    <th>Updated</th>
+                  </tr>
+                </thead>
+                <tbody data-call-body="canceled"></tbody>
+              </table>
+            </article>
+
+            <article class="call-panel" data-call-section="queued">
+              <header class="panel-header">
+                <h2>Queued</h2>
+                <span class="badge" data-call-count="queued">0</span>
+              </header>
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Call #</th>
+                    <th>Customer</th>
+                    <th>Vehicle</th>
+                    <th>Requested</th>
+                    <th>Scheduled</th>
+                    <th>Zone</th>
+                    <th>Notes</th>
+                  </tr>
+                </thead>
+                <tbody data-call-body="queued"></tbody>
+              </table>
+            </article>
+          </div>
+        </section>
+
+        <section class="dispatch-panel" data-dispatch-panel="driver-messaging" hidden>
+          <div class="messaging-layout">
+            <aside class="messaging-roster" id="messaging-roster" role="tablist"></aside>
+            <div class="messaging-thread" role="tabpanel">
+              <header class="thread-header">
+                <div class="thread-title" id="active-thread-name">Select a driver</div>
+                <div class="thread-status" id="active-thread-status"></div>
+              </header>
+              <div class="message-log" id="message-log" aria-live="polite"></div>
+              <form id="message-form" class="message-form">
+                <label class="sr-only" for="message-input">Message</label>
+                <textarea
+                  id="message-input"
+                  name="message"
+                  rows="2"
+                  placeholder="Type a message to the selected driver..."
+                  required
+                ></textarea>
+                <div class="form-actions">
+                  <button type="submit" class="primary-action">Send</button>
+                  <button type="button" class="secondary-action" id="mark-thread-read">Mark as Read</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </section>
+
+        <section class="dispatch-panel" data-dispatch-panel="surveys" hidden>
+          <form class="survey-filters" id="survey-filter-form">
+            <div class="form-field">
+              <label for="survey-category">Category</label>
+              <select id="survey-category" name="category">
+                <option value="all">All categories</option>
+                <option value="customer">Customer</option>
+                <option value="driver">Driver</option>
+                <option value="vendor">Vendor</option>
+              </select>
+            </div>
+            <div class="form-field">
+              <label for="survey-status">Status</label>
+              <select id="survey-status" name="status">
+                <option value="all">All statuses</option>
+                <option value="active">Active</option>
+                <option value="scheduled">Scheduled</option>
+                <option value="paused">Paused</option>
+              </select>
+            </div>
+            <div class="form-field">
+              <label for="survey-search">Keyword</label>
+              <input id="survey-search" name="search" type="search" placeholder="Search surveys" />
+            </div>
+            <div class="form-actions">
+              <button type="submit" class="primary-action">Apply Filters</button>
+              <button type="reset" class="secondary-action">Clear</button>
+            </div>
+          </form>
+          <div class="survey-list" id="survey-list" role="list"></div>
+        </section>
+      </main>
+
+      <footer class="footer">
+        <div>© 2024 Towbook Cloud. All rights reserved.</div>
+        <div class="footer-links">
+          <a href="#">Status</a>
+          <a href="#">Privacy</a>
+          <a href="#">Support</a>
+        </div>
+      </footer>
+    </div>
+
+    <script src="script.js" type="module"></script>
+  </body>
+</html>
