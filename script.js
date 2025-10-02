@@ -5,6 +5,13 @@ const statusFilterEl = document.querySelector('#status-filter');
 const refreshBoardButton = document.querySelector('#refresh-board');
 const goToDispatchButton = document.querySelector('#go-to-dispatch');
 
+const impoundTableBodyEl = document.querySelector('#impound-table-body');
+const impoundDetailEl = document.querySelector('#impound-detail');
+const impoundFilterInputs = document.querySelectorAll('[data-impound-filter]');
+const impoundSearchFormEl = document.querySelector('#impound-search-form');
+const impoundSearchInputEl = document.querySelector('#impound-search-input');
+const impoundTabButtons = document.querySelectorAll('[data-impound-tab]');
+
 const navLinks = document.querySelectorAll('.nav-link[data-view-target]');
 const views = document.querySelectorAll('.view[data-view]');
 
@@ -141,6 +148,121 @@ const impoundVehicles = [
     releaseDate: 'Due 09/30'
   }
 ];
+
+const impoundLotRecords = [
+  {
+    id: 'STK-2215',
+    call: 'TB-2078',
+    direction: 'in',
+    account: 'City of Detroit PD',
+    vehicle: '2018 Ford Explorer · Unit 42',
+    plate: 'PDX 4287',
+    vin: '1FM5K8AR7JGA42158',
+    impoundDate: '2024-09-18',
+    daysHeld: 12,
+    total: 425.5,
+    balanceDue: 214.5,
+    storageLot: 'Main Lot · Row 3 · Space 18',
+    status: 'current',
+    holdReason: 'Police hold pending supervisor review before release.',
+    contact: 'Officer Ramirez · (313) 555-0148',
+    releaseSteps: 'Supervisor approval and proof of insurance required.',
+    paymentStatus: 'Balance due at release',
+    vehicleColor: 'Oxford White',
+    vehicleNotes: 'Keys secured in locker 12. Dash cam removed and logged.'
+  },
+  {
+    id: 'STK-2220',
+    call: 'TB-2091',
+    direction: 'in',
+    account: 'Metro Parking Authority',
+    vehicle: '2016 Toyota Camry SE',
+    plate: 'MPA 2197',
+    vin: '4T1BF1FK0GU256718',
+    impoundDate: '2024-09-22',
+    daysHeld: 8,
+    total: 318.0,
+    balanceDue: 0,
+    storageLot: 'Overflow Lot · Row 1 · Space 05',
+    status: 'current',
+    holdReason: 'Awaiting owner payment confirmation.',
+    contact: 'Parking Authority · (313) 555-0178',
+    releaseSteps: 'Payment received, release paperwork signed 09/28.',
+    paymentStatus: 'Paid in full',
+    vehicleColor: 'Silver',
+    vehicleNotes: 'No visible damage. Battery disconnected.'
+  },
+  {
+    id: 'STK-2204',
+    call: 'TB-2059',
+    direction: 'in',
+    account: 'Allied Insurance',
+    vehicle: '2021 Jeep Wrangler Rubicon',
+    plate: 'GZR 1482',
+    vin: '1C4HJXFG4MW611284',
+    impoundDate: '2024-09-27',
+    daysHeld: 3,
+    total: 185.75,
+    balanceDue: 185.75,
+    storageLot: 'Main Lot · Row 7 · Space 02',
+    status: 'stock-in',
+    holdReason: 'Insurance inspection scheduled 10/02.',
+    contact: 'Adjuster Kelly Moore · (248) 555-0134',
+    releaseSteps: 'Release after adjuster sign-off.',
+    paymentStatus: 'Awaiting insurance approval',
+    vehicleColor: 'Granite Crystal',
+    vehicleNotes: 'Soft top secured. Photographed for claim.'
+  },
+  {
+    id: 'STK-2198',
+    call: 'TB-2046',
+    direction: 'out',
+    account: 'Private Property Program',
+    vehicle: '2014 Honda Accord LX',
+    plate: 'BKT 9034',
+    vin: '1HGCR2F3XEA135902',
+    impoundDate: '2024-09-12',
+    daysHeld: 15,
+    total: 512.4,
+    balanceDue: 0,
+    storageLot: 'Released 09/27',
+    status: 'stock-out',
+    holdReason: 'Released to registered owner.',
+    contact: 'Release Agent · Carla Jenkins',
+    releaseSteps: 'Released with signed ID and receipt #90833.',
+    paymentStatus: 'Receipt on file',
+    vehicleColor: 'Black',
+    vehicleNotes: 'Owner verified VIN at release counter.'
+  },
+  {
+    id: 'STK-2189',
+    call: 'TB-2038',
+    direction: 'out',
+    account: 'Detroit Fleet Services',
+    vehicle: '2019 Freightliner M2',
+    plate: 'DFS 4412',
+    vin: '3ALACWDT4KDLP9684',
+    impoundDate: '2024-09-05',
+    daysHeld: 21,
+    total: 786.25,
+    balanceDue: 132.0,
+    storageLot: 'Billing Hold',
+    status: 'account',
+    holdReason: 'Pending billing approval from fleet manager.',
+    contact: 'Accounts Payable · (586) 555-0199',
+    releaseSteps: 'Send invoice and await PO confirmation.',
+    paymentStatus: 'Outstanding balance',
+    vehicleColor: 'White',
+    vehicleNotes: 'Requires jump-start if returned to service.'
+  }
+];
+
+const impoundStatusMeta = {
+  current: { label: 'Active Hold', statusClass: 'status-hold' },
+  'stock-in': { label: 'New Arrival', statusClass: 'status-hold' },
+  'stock-out': { label: 'Released', statusClass: 'status-release' },
+  account: { label: 'Billing Review', statusClass: 'status-billing' }
+};
 
 const reportingMetrics = {
   revenue: '$48,230',
@@ -457,6 +579,23 @@ let currentDispatchFilters = {
 };
 
 let activeDispatchTab = 'view-calls';
+let activeImpoundTab = 'current';
+let activeImpoundId = null;
+let impoundFilters = {
+  query: '',
+  stock: '',
+  call: '',
+  direction: 'all',
+  account: '',
+  vehicle: '',
+  plate: '',
+  vin: '',
+  impoundDate: '',
+  daysHeld: '',
+  total: '',
+  balanceDue: '',
+  storageLot: ''
+};
 let activeDriverId = null;
 let surveyFilters = {
   category: 'all',
@@ -552,6 +691,337 @@ function renderImpounds() {
     fragment.appendChild(item);
   });
   impoundListEl.appendChild(fragment);
+}
+
+function impoundMatchesFilters(record, filters) {
+  const textMatches = (filterValue, recordValue) => {
+    if (!filterValue) return true;
+    return normalizeText(recordValue).includes(filterValue);
+  };
+
+  if (filters.direction !== 'all') {
+    const direction = normalizeText(record.direction);
+    if (direction !== filters.direction) {
+      return false;
+    }
+  }
+
+  if (filters.impoundDate) {
+    const recordDate = record.impoundDate?.slice(0, 10);
+    if (recordDate !== filters.impoundDate) {
+      return false;
+    }
+  }
+
+  if (filters.daysHeld) {
+    const minDays = Number(filters.daysHeld);
+    if (!Number.isNaN(minDays) && Number(record.daysHeld) < minDays) {
+      return false;
+    }
+  }
+
+  if (filters.total) {
+    const minTotal = Number(filters.total);
+    if (!Number.isNaN(minTotal) && Number(record.total) < minTotal) {
+      return false;
+    }
+  }
+
+  if (filters.balanceDue) {
+    const minBalance = Number(filters.balanceDue);
+    if (!Number.isNaN(minBalance) && Number(record.balanceDue) < minBalance) {
+      return false;
+    }
+  }
+
+  if (!textMatches(filters.stock, record.id)) return false;
+  if (!textMatches(filters.call, record.call)) return false;
+  if (!textMatches(filters.account, record.account)) return false;
+  if (!textMatches(filters.vehicle, record.vehicle)) return false;
+  if (!textMatches(filters.plate, record.plate)) return false;
+  if (!textMatches(filters.vin, record.vin)) return false;
+  if (!textMatches(filters.storageLot, record.storageLot)) return false;
+
+  if (filters.query) {
+    const haystack = [
+      record.id,
+      record.call,
+      record.account,
+      record.vehicle,
+      record.plate,
+      record.vin,
+      record.storageLot,
+      record.holdReason,
+      record.contact
+    ]
+      .filter(Boolean)
+      .map((value) => normalizeText(value))
+      .join(' ');
+
+    if (!haystack.includes(filters.query)) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+function getFilteredImpounds() {
+  return impoundLotRecords
+    .filter((record) => {
+      const tab = record.status ?? 'current';
+      return activeImpoundTab === tab;
+    })
+    .filter((record) => impoundMatchesFilters(record, impoundFilters));
+}
+
+function renderImpoundTable() {
+  if (!impoundTableBodyEl) return;
+
+  impoundTableBodyEl.innerHTML = '';
+
+  const filtered = getFilteredImpounds().sort((a, b) => {
+    const aTime = new Date(a.impoundDate).valueOf();
+    const bTime = new Date(b.impoundDate).valueOf();
+    if (Number.isNaN(aTime) || Number.isNaN(bTime)) {
+      return 0;
+    }
+    return bTime - aTime;
+  });
+
+  if (!filtered.length) {
+    const emptyRow = document.createElement('tr');
+    emptyRow.className = 'impound-empty-row';
+    emptyRow.innerHTML = '<td colspan="12" class="empty">No impounds found.</td>';
+    impoundTableBodyEl.appendChild(emptyRow);
+    activeImpoundId = null;
+    renderImpoundDetail(null);
+    return;
+  }
+
+  let activeRecord = null;
+
+  filtered.forEach((record) => {
+    const row = document.createElement('tr');
+    row.innerHTML = `
+      <td>${record.id}</td>
+      <td>${record.call}</td>
+      <td>${record.direction === 'in' ? 'In' : 'Out'}</td>
+      <td>${record.account}</td>
+      <td>${record.vehicle}</td>
+      <td>${record.plate}</td>
+      <td>${record.vin}</td>
+      <td>${formatDateOnly(record.impoundDate)}</td>
+      <td>${record.daysHeld}</td>
+      <td>${formatCurrency(record.total)}</td>
+      <td>${formatCurrency(record.balanceDue)}</td>
+      <td>${record.storageLot}</td>
+    `;
+
+    if (record.id === activeImpoundId) {
+      row.classList.add('selected');
+      activeRecord = record;
+    }
+
+    row.addEventListener('click', () => {
+      activeImpoundId = activeImpoundId === record.id ? null : record.id;
+      renderImpoundTable();
+    });
+
+    impoundTableBodyEl.appendChild(row);
+  });
+
+  if (activeImpoundId && !activeRecord) {
+    activeImpoundId = null;
+    renderImpoundDetail(null);
+  } else if (activeRecord) {
+    renderImpoundDetail(activeRecord);
+  } else {
+    renderImpoundDetail(null);
+  }
+}
+
+function renderImpoundDetail(record) {
+  if (!impoundDetailEl) return;
+
+  if (!record) {
+    impoundDetailEl.innerHTML = `
+      <div class="impound-empty-state">
+        <h2>No impound selected</h2>
+        <p>Select a vehicle from the list to view storage details and next steps.</p>
+      </div>
+    `;
+    return;
+  }
+
+  const statusMeta = impoundStatusMeta[record.status] ?? {
+    label: 'Active',
+    statusClass: 'status-hold'
+  };
+
+  const primaryActionLabel =
+    record.status === 'stock-out' ? 'View Release Paperwork' : 'Start Release';
+  const secondaryActionLabel =
+    record.status === 'account' ? 'Update Billing' : 'Print Receipt';
+
+  impoundDetailEl.innerHTML = `
+    <header class="impound-detail-header">
+      <div>
+        <h2>${record.vehicle}</h2>
+        <div class="impound-detail-meta">
+          <span>Stock ${record.id}</span>
+          <span>Call ${record.call}</span>
+          <span>Impounded ${formatDateOnly(record.impoundDate)}</span>
+        </div>
+      </div>
+      <span class="status-chip ${statusMeta.statusClass}">${statusMeta.label}</span>
+    </header>
+    <dl class="impound-detail-grid">
+      <div>
+        <dt>Account</dt>
+        <dd>${record.account}</dd>
+      </div>
+      <div>
+        <dt>Plate</dt>
+        <dd>${record.plate}</dd>
+      </div>
+      <div>
+        <dt>VIN</dt>
+        <dd>${record.vin}</dd>
+      </div>
+      <div>
+        <dt>Storage Location</dt>
+        <dd>${record.storageLot}</dd>
+      </div>
+      <div>
+        <dt>Days Held</dt>
+        <dd>${record.daysHeld}</dd>
+      </div>
+      <div>
+        <dt>Total Charges</dt>
+        <dd>${formatCurrency(record.total)}</dd>
+      </div>
+      <div>
+        <dt>Balance Due</dt>
+        <dd>${formatCurrency(record.balanceDue)}</dd>
+      </div>
+      <div>
+        <dt>Payment Status</dt>
+        <dd>${record.paymentStatus ?? '—'}</dd>
+      </div>
+      <div>
+        <dt>Vehicle Color</dt>
+        <dd>${record.vehicleColor ?? '—'}</dd>
+      </div>
+      <div>
+        <dt>Primary Contact</dt>
+        <dd>${record.contact ?? '—'}</dd>
+      </div>
+    </dl>
+    <div class="impound-detail-notes">
+      <p><strong>Hold Reason:</strong> ${record.holdReason ?? '—'}</p>
+      <p><strong>Next Steps:</strong> ${record.releaseSteps ?? '—'}</p>
+      <p><strong>Notes:</strong> ${record.vehicleNotes ?? '—'}</p>
+    </div>
+    <div class="impound-detail-actions">
+      <button type="button" class="primary-action">${primaryActionLabel}</button>
+      <button type="button" class="secondary-action">${secondaryActionLabel}</button>
+      <button type="button" class="link-action">View History</button>
+    </div>
+  `;
+}
+
+function setActiveImpoundTab(tabId, { force = false } = {}) {
+  if (!tabId) return;
+  if (!force && activeImpoundTab === tabId) {
+    return;
+  }
+
+  activeImpoundTab = tabId;
+
+  impoundTabButtons.forEach((button) => {
+    const isActive = button.dataset.impoundTab === tabId;
+    button.classList.toggle('active', isActive);
+    button.setAttribute('aria-selected', isActive ? 'true' : 'false');
+  });
+
+  activeImpoundId = null;
+  renderImpoundTable();
+}
+
+function handleImpoundFilterInput(event) {
+  const target = event.target;
+  if (!(target instanceof HTMLInputElement || target instanceof HTMLSelectElement)) {
+    return;
+  }
+
+  const key = target.dataset.impoundFilter;
+  if (!key || !(key in impoundFilters)) {
+    return;
+  }
+
+  let value = target.value ?? '';
+
+  if (target.type === 'text' || target.type === 'search') {
+    value = normalizeText(value);
+  } else if (target instanceof HTMLSelectElement) {
+    value = value.trim().toLowerCase();
+  } else if (target.type === 'number') {
+    value = value.trim();
+  }
+
+  if (key === 'direction' && !value) {
+    value = 'all';
+  }
+
+  impoundFilters[key] = value;
+  renderImpoundTable();
+}
+
+function initImpoundModule() {
+  if (!impoundTableBodyEl || !impoundDetailEl) return;
+
+  let renderedFromTab = false;
+
+  if (impoundTabButtons.length) {
+    impoundTabButtons.forEach((button) => {
+      button.addEventListener('click', () => {
+        const tabId = button.dataset.impoundTab;
+        if (tabId) {
+          setActiveImpoundTab(tabId);
+        }
+      });
+    });
+    setActiveImpoundTab(activeImpoundTab, { force: true });
+    renderedFromTab = true;
+  }
+
+  if (impoundFilterInputs.length) {
+    impoundFilterInputs.forEach((input) => {
+      const eventName = input.tagName === 'SELECT' || input.type === 'date' || input.type === 'number' ? 'change' : 'input';
+      input.addEventListener(eventName, handleImpoundFilterInput);
+    });
+  }
+
+  if (impoundSearchFormEl) {
+    impoundSearchFormEl.addEventListener('submit', (event) => {
+      event.preventDefault();
+      const queryValue = normalizeText(impoundSearchInputEl?.value ?? '');
+      impoundFilters.query = queryValue;
+      renderImpoundTable();
+    });
+
+    impoundSearchFormEl.addEventListener('reset', () => {
+      setTimeout(() => {
+        impoundFilters.query = '';
+        renderImpoundTable();
+      }, 0);
+    });
+  }
+
+  if (!renderedFromTab) {
+    renderImpoundTable();
+  }
 }
 
 function renderReports() {
@@ -660,11 +1130,29 @@ function formatDateTime(value) {
   return `${datePart} · ${timePart}`;
 }
 
+function formatDateOnly(value) {
+  if (!value) return '';
+  const date = new Date(value);
+  if (Number.isNaN(date.valueOf())) return value;
+  return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
 function formatTimeOnly(value) {
   if (!value) return '';
   const date = new Date(value);
   if (Number.isNaN(date.valueOf())) return value;
   return date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+}
+
+function formatCurrency(value) {
+  if (value === null || value === undefined || value === '') {
+    return '—';
+  }
+  const number = Number(value);
+  if (Number.isNaN(number)) {
+    return value;
+  }
+  return new Intl.NumberFormat(undefined, { style: 'currency', currency: 'USD' }).format(number);
 }
 
 function renderCallRows(status, calls) {
@@ -1058,7 +1546,7 @@ function initNavigation() {
     link.addEventListener('click', (event) => {
       event.preventDefault();
       const target = link.dataset.viewTarget;
-      if (target === 'dashboard' || target === 'dispatching') {
+      if (target) {
         setActiveView(target);
       }
     });
@@ -1196,6 +1684,7 @@ function init() {
   setActiveDispatchTab(activeDispatchTab);
   renderDashboard();
   renderDispatchingModule();
+  initImpoundModule();
   initNavigation();
   initDashboardEvents();
   initDispatchEvents();

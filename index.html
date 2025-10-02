@@ -336,6 +336,125 @@
         </section>
       </main>
 
+      <main class="view impound-view" data-view="impounds" hidden>
+        <header class="impound-header">
+          <div class="impound-heading">
+            <h1>Impound Lot</h1>
+            <p>Track vehicles on hold, view balances, and manage release requests.</p>
+          </div>
+          <div class="impound-actions">
+            <button type="button" class="primary-action">New Impound</button>
+            <button type="button" class="secondary-action impound-report-action">
+              Create Report
+              <span aria-hidden="true" class="chevron">▾</span>
+            </button>
+          </div>
+        </header>
+
+        <div class="impound-toolbar">
+          <nav class="impound-tabs" role="tablist" aria-label="Impound filters">
+            <button
+              type="button"
+              class="impound-tab active"
+              role="tab"
+              aria-selected="true"
+              data-impound-tab="current"
+            >
+              Current
+            </button>
+            <button
+              type="button"
+              class="impound-tab"
+              role="tab"
+              aria-selected="false"
+              data-impound-tab="stock-in"
+            >
+              Stock In
+            </button>
+            <button
+              type="button"
+              class="impound-tab"
+              role="tab"
+              aria-selected="false"
+              data-impound-tab="stock-out"
+            >
+              Stock Out
+            </button>
+            <button
+              type="button"
+              class="impound-tab"
+              role="tab"
+              aria-selected="false"
+              data-impound-tab="account"
+            >
+              Account
+            </button>
+          </nav>
+
+          <form class="impound-search" id="impound-search-form" role="search">
+            <label class="sr-only" for="impound-search-input">Search impounds</label>
+            <input
+              type="search"
+              id="impound-search-input"
+              name="query"
+              placeholder="Search"
+              autocomplete="off"
+            />
+            <div class="impound-search-actions">
+              <button type="submit" class="secondary-action">Search</button>
+              <button type="reset" class="link-action">Reset</button>
+            </div>
+          </form>
+        </div>
+
+        <section class="impound-lot" aria-labelledby="impound-table-heading">
+          <div class="impound-table-wrapper">
+            <h2 id="impound-table-heading" class="sr-only">Impound inventory</h2>
+            <table class="data-table impound-table">
+              <thead>
+                <tr>
+                  <th scope="col">Stock #</th>
+                  <th scope="col">Call #</th>
+                  <th scope="col">In / Out</th>
+                  <th scope="col">Account</th>
+                  <th scope="col">Vehicle</th>
+                  <th scope="col">Plate</th>
+                  <th scope="col">VIN</th>
+                  <th scope="col">Impound Date</th>
+                  <th scope="col">Days Held</th>
+                  <th scope="col">Total</th>
+                  <th scope="col">Balance Due</th>
+                  <th scope="col">Storage Lot</th>
+                </tr>
+                <tr class="impound-filter-row">
+                  <th><input type="text" placeholder="Filter" data-impound-filter="stock" /></th>
+                  <th><input type="text" placeholder="Filter" data-impound-filter="call" /></th>
+                  <th>
+                    <select data-impound-filter="direction">
+                      <option value="all">All</option>
+                      <option value="in">In</option>
+                      <option value="out">Out</option>
+                    </select>
+                  </th>
+                  <th><input type="text" placeholder="Filter" data-impound-filter="account" /></th>
+                  <th><input type="text" placeholder="Filter" data-impound-filter="vehicle" /></th>
+                  <th><input type="text" placeholder="Filter" data-impound-filter="plate" /></th>
+                  <th><input type="text" placeholder="Filter" data-impound-filter="vin" /></th>
+                  <th><input type="date" data-impound-filter="impoundDate" /></th>
+                  <th><input type="number" min="0" placeholder="" data-impound-filter="daysHeld" /></th>
+                  <th><input type="number" min="0" step="0.01" placeholder="" data-impound-filter="total" /></th>
+                  <th><input type="number" min="0" step="0.01" placeholder="" data-impound-filter="balanceDue" /></th>
+                  <th><input type="text" placeholder="Filter" data-impound-filter="storageLot" /></th>
+                </tr>
+              </thead>
+              <tbody id="impound-table-body"></tbody>
+            </table>
+          </div>
+
+          <aside class="impound-detail" id="impound-detail"></aside>
+        </section>
+      </main>
+
       <footer class="footer">
         <div>© 2024 Towbook Cloud. All rights reserved.</div>
         <div class="footer-links">
