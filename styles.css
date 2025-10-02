@@ -754,6 +754,10 @@ body {
   gap: 1.75rem;
 }
 
+.dispatch-panel[hidden] {
+  display: none;
+}
+
 .dispatch-filters {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
