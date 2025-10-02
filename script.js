@@ -1,6 +1,16 @@
 const dashboardStatusMetricsEl = document.querySelector('#status-metrics');
 const dashboardDispatchRowsEl = document.querySelector('#dashboard-dispatch-rows');
 const impoundListEl = document.querySelector('#impound-list');
+const impoundTableBodyEl = document.querySelector('#impound-table-body');
+const impoundEmptyStateEl = document.querySelector('[data-impound-empty]');
+const impoundSearchInputEl = document.querySelector('#impound-search');
+const impoundAlertEl = document.querySelector('#impound-alert');
+const newImpoundButton = document.querySelector('#new-impound-button');
+const impoundModalEl = document.querySelector('#new-impound-modal');
+const impoundFormEl = document.querySelector('#impound-form');
+const impoundFormFeedbackEl = document.querySelector('#impound-form-feedback');
+const impoundModeButtons = document.querySelectorAll('[data-impound-mode]');
+const impoundCloseTargets = document.querySelectorAll('[data-close-impound]');
 const statusFilterEl = document.querySelector('#status-filter');
 const refreshBoardButton = document.querySelector('#refresh-board');
 const goToDispatchButton = document.querySelector('#go-to-dispatch');
@@ -123,22 +133,60 @@ const dashboardDispatchTickets = [
 
 const impoundVehicles = [
   {
-    title: 'INV-8841 · Ford Transit',
+    impoundNumber: 'INV-8841',
+    invoice: '8841-2024',
+    vehicle: '2021 Ford Transit (White)',
     owner: 'City Maintenance',
-    holdReason: 'Expired permits',
-    releaseDate: 'Pending'
+    ownerPhone: '(313) 555-0181',
+    reason: 'Expired Permits',
+    priority: 'Normal',
+    release: 'Pending review',
+    status: 'holding',
+    location: 'USP Holding',
+    notes: 'Expired municipal permits – held in bay 3A.',
+    hasKeys: true
   },
   {
-    title: 'INV-8823 · Dodge Charger',
+    impoundNumber: 'INV-8823',
+    invoice: '8823-2024',
+    vehicle: '2019 Dodge Charger (Black)',
     owner: 'Leonard Jackson',
-    holdReason: 'Police hold',
-    releaseDate: 'Review 10/01'
+    ownerPhone: '(248) 555-0148',
+    reason: 'Police Hold',
+    priority: 'Emergency',
+    release: 'Hold until 10/01',
+    status: 'awaiting',
+    location: 'North Yard',
+    notes: 'Hold per Metro PD case #4481.',
+    hasKeys: false
   },
   {
-    title: 'INV-8810 · Toyota Prius',
+    impoundNumber: 'INV-8810',
+    invoice: '8810-2024',
+    vehicle: '2017 Toyota Prius (Silver)',
     owner: 'EcoRide Rentals',
-    holdReason: 'Awaiting payment',
-    releaseDate: 'Due 09/30'
+    ownerPhone: '(989) 555-0113',
+    reason: 'Awaiting Payment',
+    priority: 'Normal',
+    release: 'Payment due 09/30',
+    status: 'holding',
+    location: 'East Lot',
+    notes: 'Rental company notified on 09/25.',
+    hasKeys: true
+  },
+  {
+    impoundNumber: 'INV-8802',
+    invoice: '8802-2024',
+    vehicle: '2014 Chevy Silverado (Red)',
+    owner: 'Harper Logistics',
+    ownerPhone: '(517) 555-0177',
+    reason: 'Tow Away Zone',
+    priority: 'High',
+    release: 'Ready for release',
+    status: 'ready',
+    location: 'Central Storage',
+    notes: 'Release paperwork on file at front desk.',
+    hasKeys: true
   }
 ];
 
@@ -146,6 +194,28 @@ const reportingMetrics = {
   revenue: '$48,230',
   responseTime: '22m 14s',
   activeContracts: '34'
+};
+
+const impoundReasonLabels = {
+  'police-hold': 'Police Hold',
+  'private-property': 'Private Property',
+  abandoned: 'Abandoned Vehicle',
+  'tow-away': 'Tow Away Zone',
+  evidence: 'Evidence'
+};
+
+const impoundDestinationLabels = {
+  'usp-holding': 'USP Holding',
+  'north-yard': 'North Yard',
+  'east-lot': 'East Lot',
+  'central-storage': 'Central Storage'
+};
+
+const impoundStatusLabels = {
+  holding: 'On Hold',
+  awaiting: 'Awaiting Release',
+  ready: 'Ready',
+  released: 'Released'
 };
 
 const callProgressMeta = {
@@ -463,6 +533,8 @@ let surveyFilters = {
   status: 'all',
   search: ''
 };
+let impoundSearchTerm = '';
+let impoundAlertTimeoutId = null;
 
 function generateMessageId() {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
@@ -539,19 +611,61 @@ function renderDashboardDispatchRows(filter = 'all') {
 function renderImpounds() {
   if (!impoundListEl) return;
 
+  impoundListEl.innerHTML = '';
   const fragment = document.createDocumentFragment();
-  impoundVehicles.forEach(({ title, owner, holdReason, releaseDate }) => {
+  impoundVehicles.slice(0, 4).forEach(({ impoundNumber, vehicle, owner, reason, release }) => {
     const item = document.createElement('li');
     item.className = 'impound-item';
     item.innerHTML = `
-      <h3>${title}</h3>
+      <h3>${impoundNumber} · ${vehicle}</h3>
       <span>Owner: ${owner}</span>
-      <span>Hold Reason: ${holdReason}</span>
-      <span>Release: ${releaseDate}</span>
+      <span>Hold Reason: ${reason}</span>
+      <span>Release: ${release}</span>
     `;
     fragment.appendChild(item);
   });
   impoundListEl.appendChild(fragment);
+}
+
+function renderImpoundTable() {
+  if (!impoundTableBodyEl) return;
+
+  impoundTableBodyEl.innerHTML = '';
+  const filteredRecords = getFilteredImpounds();
+
+  if (!filteredRecords.length) {
+    if (impoundEmptyStateEl) {
+      impoundEmptyStateEl.hidden = false;
+    }
+    return;
+  }
+
+  if (impoundEmptyStateEl) {
+    impoundEmptyStateEl.hidden = true;
+  }
+
+  const fragment = document.createDocumentFragment();
+  filteredRecords.forEach((record) => {
+    const row = document.createElement('tr');
+    row.innerHTML = `
+      <td>${record.impoundNumber}</td>
+      <td>
+        <div class="impound-vehicle">${record.vehicle}</div>
+        <div class="impound-meta">Invoice ${record.invoice} · ${record.location}</div>
+      </td>
+      <td>
+        <div class="impound-owner">${record.owner}</div>
+        <div class="impound-owner-meta">${record.ownerPhone ?? 'No phone on file'}</div>
+      </td>
+      <td>${record.reason}</td>
+      <td>${record.priority}</td>
+      <td>${record.release}</td>
+      <td><span class="status-chip status-${record.status}">${formatImpoundStatus(record.status)}</span></td>
+    `;
+    fragment.appendChild(row);
+  });
+
+  impoundTableBodyEl.appendChild(fragment);
 }
 
 function renderReports() {
@@ -596,6 +710,200 @@ function populateDispatchFilters() {
 
 function normalizeText(value) {
   return value ? value.toString().trim().toLowerCase() : '';
+}
+
+function formatImpoundStatus(status) {
+  return impoundStatusLabels[status] ?? status;
+}
+
+function mapImpoundReason(value) {
+  if (!value) return 'Hold';
+  return impoundReasonLabels[value] ?? value;
+}
+
+function mapImpoundDestination(value) {
+  if (!value) return 'USP Holding';
+  return impoundDestinationLabels[value] ?? value;
+}
+
+function determineImpoundStatus(releaseText) {
+  const text = normalizeText(releaseText);
+  if (!text) return 'holding';
+  if (text.includes('released')) return 'released';
+  if (text.includes('ready')) return 'ready';
+  if (text.includes('pending') || text.includes('await')) return 'awaiting';
+  if (text.includes('hold')) return 'holding';
+  return 'holding';
+}
+
+function generateImpoundNumber() {
+  const numericValues = impoundVehicles
+    .map((record) => parseInt(record.impoundNumber.replace(/\D+/g, ''), 10))
+    .filter((value) => !Number.isNaN(value));
+  const currentMax = numericValues.length ? Math.max(...numericValues) : 8800;
+  return `INV-${currentMax + 1}`;
+}
+
+function generateInvoiceNumber(impoundNumber) {
+  const digits = impoundNumber.replace(/\D+/g, '');
+  const year = new Date().getFullYear();
+  return digits ? `${digits}-${year}` : `${year}-${Date.now().toString(36).slice(-4)}`;
+}
+
+function getFilteredImpounds() {
+  const query = normalizeText(impoundSearchTerm);
+  if (!query) {
+    return [...impoundVehicles];
+  }
+
+  return impoundVehicles.filter((record) => {
+    const fields = [
+      record.impoundNumber,
+      record.vehicle,
+      record.owner,
+      record.ownerPhone,
+      record.reason,
+      record.priority,
+      record.release,
+      formatImpoundStatus(record.status)
+    ];
+    return fields.some((value) => normalizeText(value).includes(query));
+  });
+}
+
+function createImpoundRecord(formData) {
+  const rawImpoundNumber = (formData.get('impoundNumber') ?? '').toString().trim().toUpperCase();
+  const impoundNumber = rawImpoundNumber || generateImpoundNumber();
+  const invoiceInput = (formData.get('invoiceNumber') ?? '').toString().trim();
+  const invoice = invoiceInput || generateInvoiceNumber(impoundNumber);
+
+  const year = (formData.get('vehicleYear') ?? '').toString().trim();
+  const make = (formData.get('vehicleMake') ?? '').toString().trim();
+  const model = (formData.get('vehicleModel') ?? '').toString().trim();
+  const color = (formData.get('vehicleColor') ?? '').toString().trim();
+  const descriptorParts = [year, make, model].filter(Boolean);
+  const baseDescriptor = descriptorParts.length
+    ? descriptorParts.join(' ')
+    : (formData.get('vehicleType') ?? 'Vehicle Pending').toString();
+  const vehicle = color ? `${baseDescriptor} (${color})` : baseDescriptor;
+
+  const owner = (formData.get('ownerName') ?? '').toString().trim() || 'Unknown Owner';
+  const ownerPhone = (formData.get('ownerPhone') ?? '').toString().trim() || 'No phone on file';
+  const reasonValue = (formData.get('impoundReason') ?? '').toString();
+  const reason = mapImpoundReason(reasonValue);
+  const priorityValue = (formData.get('priority') ?? 'Normal').toString();
+  const isEmergency = formData.get('isEmergency') === 'yes';
+  const priority = isEmergency ? 'Emergency' : priorityValue;
+  const release = (formData.get('releaseStatus') ?? 'Pending Release').toString();
+  const status = determineImpoundStatus(release);
+  const locationValue = (formData.get('destination') ?? '').toString();
+  const location = mapImpoundDestination(locationValue);
+  const notesPrimary = (formData.get('vehicleNotes') ?? '').toString().trim();
+  const incidentNotes = (formData.get('notes') ?? '').toString().trim();
+  const notes = notesPrimary || incidentNotes || '';
+  const hasKeys = formData.get('hasKeys') === 'yes';
+
+  return {
+    impoundNumber,
+    invoice,
+    vehicle,
+    owner,
+    ownerPhone,
+    reason,
+    priority,
+    release,
+    status,
+    location,
+    notes,
+    hasKeys
+  };
+}
+
+function setImpoundMode(button) {
+  if (!impoundModeButtons.length) return;
+  impoundModeButtons.forEach((modeButton) => {
+    const isActive = button
+      ? modeButton === button
+      : modeButton.dataset.impoundMode === 'new';
+    modeButton.classList.toggle('is-active', isActive);
+  });
+}
+
+function openImpoundModal() {
+  if (!impoundModalEl) return;
+
+  setImpoundMode(null);
+  if (impoundFormEl) {
+    impoundFormEl.reset();
+  }
+  if (impoundFormFeedbackEl) {
+    impoundFormFeedbackEl.textContent = '';
+  }
+
+  impoundModalEl.hidden = false;
+  document.body.classList.add('modal-open');
+
+  const firstField = impoundModalEl.querySelector('#impound-account');
+  if (firstField instanceof HTMLElement) {
+    window.requestAnimationFrame(() => firstField.focus());
+  }
+}
+
+function closeImpoundModal({ resetFeedback = true } = {}) {
+  if (!impoundModalEl) return;
+
+  impoundModalEl.hidden = true;
+  document.body.classList.remove('modal-open');
+
+  if (impoundFormEl) {
+    impoundFormEl.reset();
+  }
+  if (resetFeedback && impoundFormFeedbackEl) {
+    impoundFormFeedbackEl.textContent = '';
+  }
+
+  setImpoundMode(null);
+}
+
+function showImpoundAlert(message) {
+  if (!impoundAlertEl) return;
+
+  impoundAlertEl.textContent = message;
+  impoundAlertEl.hidden = false;
+
+  if (impoundAlertTimeoutId) {
+    clearTimeout(impoundAlertTimeoutId);
+  }
+
+  impoundAlertTimeoutId = window.setTimeout(() => {
+    impoundAlertEl.hidden = true;
+  }, 4000);
+}
+
+function handleImpoundSubmit(event) {
+  event.preventDefault();
+  if (!impoundFormEl) return;
+
+  const formData = new FormData(impoundFormEl);
+  const record = createImpoundRecord(formData);
+  impoundVehicles.unshift(record);
+
+  impoundSearchTerm = '';
+  if (impoundSearchInputEl) {
+    impoundSearchInputEl.value = '';
+  }
+
+  renderImpounds();
+  renderImpoundTable();
+
+  if (impoundFormFeedbackEl) {
+    impoundFormFeedbackEl.textContent = 'Impound saved';
+  }
+
+  window.setTimeout(() => {
+    closeImpoundModal();
+    showImpoundAlert(`Impound ${record.impoundNumber} created successfully.`);
+  }, 300);
 }
 
 function getFiltersFromForm() {
@@ -1054,11 +1362,12 @@ function renderDispatchingModule() {
 }
 
 function initNavigation() {
+  const allowedViews = new Set(['dashboard', 'dispatching', 'impounds']);
   navLinks.forEach((link) => {
     link.addEventListener('click', (event) => {
       event.preventDefault();
       const target = link.dataset.viewTarget;
-      if (target === 'dashboard' || target === 'dispatching') {
+      if (target && allowedViews.has(target)) {
         setActiveView(target);
       }
     });
@@ -1191,14 +1500,64 @@ function initDispatchEvents() {
   }
 }
 
+function initImpoundEvents() {
+  if (newImpoundButton) {
+    newImpoundButton.addEventListener('click', () => {
+      openImpoundModal();
+    });
+  }
+
+  impoundModeButtons.forEach((button) => {
+    button.addEventListener('click', () => {
+      setImpoundMode(button);
+    });
+  });
+
+  impoundCloseTargets.forEach((element) => {
+    element.addEventListener('click', () => {
+      closeImpoundModal();
+    });
+  });
+
+  if (impoundModalEl) {
+    impoundModalEl.addEventListener('click', (event) => {
+      if (event.target === impoundModalEl) {
+        closeImpoundModal();
+      }
+    });
+  }
+
+  if (impoundSearchInputEl) {
+    impoundSearchInputEl.addEventListener('input', (event) => {
+      const target = event.target;
+      if (target instanceof HTMLInputElement) {
+        impoundSearchTerm = target.value;
+        renderImpoundTable();
+      }
+    });
+  }
+
+  if (impoundFormEl) {
+    impoundFormEl.addEventListener('submit', handleImpoundSubmit);
+  }
+
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && impoundModalEl && !impoundModalEl.hidden) {
+      closeImpoundModal();
+    }
+  });
+}
+
 function init() {
   setActiveView('dashboard');
   setActiveDispatchTab(activeDispatchTab);
   renderDashboard();
   renderDispatchingModule();
+  renderImpoundTable();
   initNavigation();
   initDashboardEvents();
   initDispatchEvents();
+  initImpoundEvents();
 }
 
 document.addEventListener('DOMContentLoaded', init);
