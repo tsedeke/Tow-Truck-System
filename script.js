@@ -11,6 +11,23 @@ const impoundFilterInputs = document.querySelectorAll('[data-impound-filter]');
 const impoundSearchFormEl = document.querySelector('#impound-search-form');
 const impoundSearchInputEl = document.querySelector('#impound-search-input');
 const impoundTabButtons = document.querySelectorAll('[data-impound-tab]');
+const newImpoundButton = document.querySelector('[data-open-impound]');
+const newImpoundDialog = document.querySelector('#new-impound-dialog');
+const newImpoundForm = document.querySelector('#new-impound-form');
+const newImpoundCallTypeInput = document.querySelector('#new-impound-call-type');
+const newImpoundCallTypeButtons = newImpoundDialog
+  ? Array.from(newImpoundDialog.querySelectorAll('[data-call-type]'))
+  : [];
+const newImpoundCloseButtons = newImpoundDialog
+  ? Array.from(newImpoundDialog.querySelectorAll('[data-close-impound]'))
+  : [];
+const impoundChargeRowsContainer = document.querySelector('#impound-charge-rows');
+const addChargeRowButton = document.querySelector('#impound-add-charge');
+const impoundChargeSubtotalEl = document.querySelector('#impound-charge-subtotal');
+const impoundChargeGrandTotalEl = document.querySelector('#impound-charge-grand-total');
+const impoundChargeBalanceEl = document.querySelector('#impound-charge-balance-due');
+const impoundChargeTaxesInput = document.querySelector('#impound-charge-taxes');
+const impoundChargePaymentInput = document.querySelector('#impound-charge-payment');
 
 const navLinks = document.querySelectorAll('.nav-link[data-view-target]');
 const views = document.querySelectorAll('.view[data-view]');
@@ -581,7 +598,7 @@ let currentDispatchFilters = {
 let activeDispatchTab = 'view-calls';
 let activeImpoundTab = 'current';
 let activeImpoundId = null;
-let impoundFilters = {
+const defaultImpoundFilters = {
   query: '',
   stock: '',
   call: '',
@@ -596,12 +613,509 @@ let impoundFilters = {
   balanceDue: '',
   storageLot: ''
 };
+
+let impoundFilters = { ...defaultImpoundFilters };
+let isNewImpoundDialogOpen = false;
 let activeDriverId = null;
 let surveyFilters = {
   category: 'all',
   status: 'all',
   search: ''
 };
+
+function generateStockNumber() {
+  const numbers = impoundLotRecords
+    .map((record) => Number(String(record.id ?? '').replace(/\D/g, '')))
+    .filter((value) => !Number.isNaN(value));
+  const maxValue = numbers.length ? Math.max(...numbers) : 2200;
+  const next = maxValue + 1;
+  return `STK-${String(next).padStart(4, '0')}`;
+}
+
+function generateCallNumber() {
+  const numbers = impoundLotRecords
+    .map((record) => Number(String(record.call ?? '').replace(/\D/g, '')))
+    .filter((value) => !Number.isNaN(value));
+  const maxValue = numbers.length ? Math.max(...numbers) : 2000;
+  const next = maxValue + 1;
+  return `TB-${String(next).padStart(4, '0')}`;
+}
+
+function parseCurrencyInput(value) {
+  const number = Number.parseFloat(typeof value === 'string' ? value : String(value ?? ''));
+  return Number.isFinite(number) ? number : 0;
+}
+
+function appendChargeRow(initial = {}) {
+  if (!impoundChargeRowsContainer) {
+    return null;
+  }
+
+  const row = document.createElement('tr');
+  row.dataset.chargeRow = 'true';
+  row.innerHTML = `
+    <td><input type="text" placeholder="Describe charge" data-charge-field="description" /></td>
+    <td><input type="number" min="0" step="1" data-charge-field="quantity" /></td>
+    <td><input type="number" min="0" step="0.01" data-charge-field="rate" /></td>
+    <td class="impound-charge-total" data-charge-total>$0.00</td>
+    <td><button type="button" class="link-action" data-remove-charge>Remove</button></td>
+  `;
+
+  const descriptionInput = row.querySelector('[data-charge-field="description"]');
+  const quantityInput = row.querySelector('[data-charge-field="quantity"]');
+  const rateInput = row.querySelector('[data-charge-field="rate"]');
+
+  const { description = '', quantity = 1, rate = '' } = initial;
+
+  if (descriptionInput) {
+    descriptionInput.value = description;
+    descriptionInput.addEventListener('input', updateChargeSummary);
+  }
+  if (quantityInput) {
+    const quantityNumber = parseCurrencyInput(quantity);
+    quantityInput.value = quantityNumber > 0 ? quantityNumber : 1;
+    quantityInput.addEventListener('input', updateChargeSummary);
+  }
+  if (rateInput) {
+    const rateNumber = parseCurrencyInput(rate);
+    rateInput.value = rateNumber > 0 ? rateNumber : '';
+    rateInput.addEventListener('input', updateChargeSummary);
+  }
+
+  impoundChargeRowsContainer.appendChild(row);
+  updateChargeSummary();
+  return row;
+}
+
+function updateChargeSummary() {
+  let subtotal = 0;
+
+  if (impoundChargeRowsContainer) {
+    const rows = Array.from(impoundChargeRowsContainer.querySelectorAll('[data-charge-row]'));
+    rows.forEach((row) => {
+      const quantityInput = row.querySelector('[data-charge-field="quantity"]');
+      const rateInput = row.querySelector('[data-charge-field="rate"]');
+      const totalCell = row.querySelector('[data-charge-total]');
+
+      const quantity = parseCurrencyInput(quantityInput?.value ?? '0');
+      const rate = parseCurrencyInput(rateInput?.value ?? '0');
+      const rowTotal = quantity * rate;
+      subtotal += rowTotal;
+
+      if (totalCell) {
+        totalCell.textContent = formatCurrency(rowTotal);
+      }
+    });
+  }
+
+  const taxes = parseCurrencyInput(impoundChargeTaxesInput?.value ?? '0');
+  const payments = parseCurrencyInput(impoundChargePaymentInput?.value ?? '0');
+  const grandTotal = Math.max(0, subtotal + taxes);
+  const balanceDue = Math.max(0, grandTotal - payments);
+
+  if (impoundChargeSubtotalEl) {
+    impoundChargeSubtotalEl.textContent = formatCurrency(subtotal);
+  }
+  if (impoundChargeGrandTotalEl) {
+    impoundChargeGrandTotalEl.textContent = formatCurrency(grandTotal);
+  }
+  if (impoundChargeBalanceEl) {
+    impoundChargeBalanceEl.textContent = formatCurrency(balanceDue);
+  }
+}
+
+function getChargeSummary() {
+  const charges = [];
+  let subtotal = 0;
+
+  if (impoundChargeRowsContainer) {
+    const rows = Array.from(impoundChargeRowsContainer.querySelectorAll('[data-charge-row]'));
+    rows.forEach((row) => {
+      const descriptionInput = row.querySelector('[data-charge-field="description"]');
+      const quantityInput = row.querySelector('[data-charge-field="quantity"]');
+      const rateInput = row.querySelector('[data-charge-field="rate"]');
+
+      const quantity = parseCurrencyInput(quantityInput?.value ?? '0');
+      const rate = parseCurrencyInput(rateInput?.value ?? '0');
+      const total = quantity * rate;
+
+      subtotal += total;
+      charges.push({
+        description: (descriptionInput?.value ?? '').toString().trim(),
+        quantity,
+        rate,
+        total
+      });
+    });
+  }
+
+  const taxes = parseCurrencyInput(impoundChargeTaxesInput?.value ?? '0');
+  const payments = parseCurrencyInput(impoundChargePaymentInput?.value ?? '0');
+  const grandTotal = Math.max(0, subtotal + taxes);
+  const balanceDue = Math.max(0, grandTotal - payments);
+
+  return { charges, subtotal, taxes, payments, grandTotal, balanceDue };
+}
+
+function resetImpoundFilters() {
+  impoundFilters = { ...defaultImpoundFilters };
+
+  impoundFilterInputs.forEach((input) => {
+    if (input instanceof HTMLInputElement) {
+      input.value = '';
+    } else if (input instanceof HTMLSelectElement) {
+      input.value = input.dataset.impoundFilter === 'direction' ? 'all' : '';
+    }
+  });
+
+  if (impoundSearchInputEl) {
+    impoundSearchInputEl.value = '';
+  }
+}
+
+function resetNewImpoundForm() {
+  if (!newImpoundForm) {
+    return;
+  }
+
+  newImpoundForm.reset();
+
+  if (newImpoundCallTypeInput) {
+    newImpoundCallTypeInput.value = 'new';
+  }
+
+  if (newImpoundCallTypeButtons.length) {
+    newImpoundCallTypeButtons.forEach((button) => {
+      const isDefault = button.dataset.callType === 'new';
+      button.classList.toggle('active', isDefault);
+      button.setAttribute('aria-pressed', isDefault ? 'true' : 'false');
+    });
+  }
+
+  const impoundDateField = newImpoundForm.querySelector('#impound-date');
+  if (impoundDateField instanceof HTMLInputElement) {
+    impoundDateField.value = new Date().toISOString().slice(0, 10);
+  }
+
+  if (impoundChargeRowsContainer) {
+    impoundChargeRowsContainer.innerHTML = '';
+    appendChargeRow({ description: 'Impound Tow Fee', quantity: 1 });
+  }
+
+  if (impoundChargeTaxesInput) {
+    impoundChargeTaxesInput.value = '0';
+  }
+  if (impoundChargePaymentInput) {
+    impoundChargePaymentInput.value = '0';
+  }
+
+  updateChargeSummary();
+}
+
+function openNewImpoundDialog() {
+  if (!newImpoundDialog) {
+    return;
+  }
+
+  resetNewImpoundForm();
+  newImpoundDialog.hidden = false;
+  document.body.classList.add('modal-open');
+  isNewImpoundDialogOpen = true;
+  document.addEventListener('keydown', handleImpoundDialogKeydown);
+
+  requestAnimationFrame(() => {
+    const firstField = newImpoundForm?.querySelector('[data-initial-focus]');
+    if (firstField instanceof HTMLElement) {
+      firstField.focus();
+    }
+  });
+}
+
+function closeNewImpoundDialog() {
+  if (!newImpoundDialog) {
+    return;
+  }
+
+  newImpoundDialog.hidden = true;
+  document.body.classList.remove('modal-open');
+  isNewImpoundDialogOpen = false;
+  document.removeEventListener('keydown', handleImpoundDialogKeydown);
+
+  if (newImpoundButton instanceof HTMLElement) {
+    newImpoundButton.focus();
+  }
+}
+
+function handleImpoundDialogKeydown(event) {
+  if (!isNewImpoundDialogOpen) {
+    return;
+  }
+
+  if (event.key === 'Escape') {
+    event.preventDefault();
+    closeNewImpoundDialog();
+  }
+}
+
+function handleNewImpoundSubmit(event) {
+  event.preventDefault();
+  if (!newImpoundForm) {
+    return;
+  }
+
+  const formData = new FormData(newImpoundForm);
+
+  let stockId = (formData.get('stockId') ?? '').toString().trim().toUpperCase();
+  if (!stockId) {
+    stockId = generateStockNumber();
+  }
+  if (impoundLotRecords.some((record) => record.id === stockId)) {
+    stockId = generateStockNumber();
+  }
+
+  let callNumber = (formData.get('callNumber') ?? '').toString().trim().toUpperCase();
+  if (!callNumber) {
+    callNumber = generateCallNumber();
+  }
+  if (impoundLotRecords.some((record) => record.call === callNumber)) {
+    callNumber = generateCallNumber();
+  }
+
+  const directionRaw = (formData.get('direction') ?? 'in').toString().toLowerCase();
+  const direction = directionRaw === 'out' ? 'out' : 'in';
+
+  const impoundDateRaw = formData.get('impoundDate');
+  let impoundDateValue = impoundDateRaw ? new Date(`${impoundDateRaw}T00:00:00`) : new Date();
+  if (Number.isNaN(impoundDateValue.valueOf())) {
+    impoundDateValue = new Date();
+  }
+  const impoundDate = impoundDateValue.toISOString().slice(0, 10);
+
+  const today = new Date();
+  const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const startOfImpound = new Date(
+    impoundDateValue.getFullYear(),
+    impoundDateValue.getMonth(),
+    impoundDateValue.getDate()
+  );
+  const msInDay = 86_400_000;
+  const daysHeld = Math.max(0, Math.round((startOfToday.valueOf() - startOfImpound.valueOf()) / msInDay));
+
+  const account = (formData.get('account') ?? '').toString().trim() || 'Walk-in Intake';
+  const contactName = (formData.get('contactName') ?? '').toString().trim();
+  const contactPhone = (formData.get('contactPhone') ?? '').toString().trim();
+  const contactParts = [contactName, contactPhone].filter(Boolean);
+  const contact = contactParts.join(' · ');
+
+  const pickupLocation = (formData.get('pickupLocation') ?? '').toString().trim();
+  const destination = (formData.get('destination') ?? '').toString().trim();
+  const invoiceNumber = (formData.get('invoiceNumber') ?? '').toString().trim();
+  const impoundReason = (formData.get('impoundReason') ?? '').toString();
+  const priority = (formData.get('priority') ?? 'normal').toString();
+  const emergency = formData.get('emergency') === 'yes';
+
+  const year = (formData.get('vehicleYear') ?? '').toString().trim();
+  const make = (formData.get('vehicleMake') ?? '').toString().trim();
+  const model = (formData.get('vehicleModel') ?? '').toString().trim();
+  const vehicleType = (formData.get('vehicleType') ?? '').toString().trim();
+  const vehicleColor = (formData.get('vehicleColor') ?? '').toString().trim();
+  const plate = (formData.get('plate') ?? '').toString().trim().toUpperCase();
+  const plateState = (formData.get('plateState') ?? '').toString().trim().toUpperCase();
+  const vin = (formData.get('vin') ?? '').toString().trim().toUpperCase();
+  const odometer = (formData.get('odometer') ?? '').toString().trim();
+  const drivable = (formData.get('drivable') ?? '').toString();
+  const hasKeys = formData.get('hasKeys') === 'yes';
+  const keyLocation = (formData.get('keyLocation') ?? '').toString().trim();
+  const driver = (formData.get('driver') ?? '').toString().trim();
+  const truck = (formData.get('truck') ?? '').toString().trim();
+  const storageLot = (formData.get('storageLot') ?? '').toString().trim() || 'Main Lot';
+
+  const holdReasonNotes = (formData.get('holdReason') ?? '').toString().trim();
+  const vehicleNotesRaw = (formData.get('vehicleNotes') ?? '').toString().trim();
+  const billingNotes = (formData.get('billingNotes') ?? '').toString().trim();
+  const includeBillingNotes = formData.get('includeBillingNotes') === 'yes';
+
+  const charges = getChargeSummary();
+
+  const reasonLabels = {
+    'police-hold': 'Police hold',
+    'private-property': 'Private property tow',
+    accident: 'Accident scene',
+    abandoned: 'Abandoned vehicle',
+    repossession: 'Repossession'
+  };
+  const reasonLabel = reasonLabels[impoundReason] ?? 'Impound hold';
+  const holdReason = holdReasonNotes ? `${reasonLabel}. ${holdReasonNotes}` : `${reasonLabel}.`;
+
+  const releaseStepsParts = [];
+  if (emergency) {
+    releaseStepsParts.push('Emergency hold: supervisor approval required before release.');
+  } else {
+    releaseStepsParts.push('Release once paperwork and balance are confirmed.');
+  }
+  if (priority === 'rush') {
+    releaseStepsParts.push('Rush intake: expedite billing verification.');
+  } else if (priority === 'after-hours') {
+    releaseStepsParts.push('Coordinate after-hours release scheduling.');
+  }
+  const releaseSteps = releaseStepsParts.join(' ');
+
+  const vehicleParts = [year, make, model].filter(Boolean);
+  const vehicleBase = vehicleParts.length ? vehicleParts.join(' ') : 'Vehicle Intake';
+  const vehicleTypeLabel = vehicleType
+    ? `${vehicleType.charAt(0).toUpperCase()}${vehicleType.slice(1)}`
+    : '';
+  const vehicleDescriptor = vehicleTypeLabel ? `${vehicleBase} · ${vehicleTypeLabel}` : vehicleBase;
+
+  const plateDisplay = plateState ? [plate || '—', plateState].filter(Boolean).join(' · ') : plate || '—';
+
+  const notes = [];
+  if (vehicleNotesRaw) notes.push(vehicleNotesRaw);
+  if (pickupLocation) notes.push(`Pickup: ${pickupLocation}`);
+  if (destination) notes.push(`Destination: ${destination}`);
+  if (odometer) notes.push(`Odometer: ${odometer} mi`);
+  if (drivable === 'no') notes.push('Not drivable');
+  if (drivable === 'unknown') notes.push('Drivability unknown');
+  if (hasKeys) {
+    notes.push(keyLocation ? `Keys stored at ${keyLocation}` : 'Keys provided');
+  } else {
+    notes.push('Keys not provided');
+  }
+  if (driver || truck) {
+    notes.push(`Intake by ${[driver, truck].filter(Boolean).join(' · ')}`);
+  }
+  const chargeNotes = charges.charges
+    .filter((charge) => charge.description && charge.total > 0)
+    .map((charge) => `${charge.description}: ${formatCurrency(charge.total)}`);
+  if (chargeNotes.length) {
+    notes.push(`Charges — ${chargeNotes.join(', ')}`);
+  }
+  if (billingNotes && includeBillingNotes) {
+    notes.push(`Billing notes: ${billingNotes}`);
+  }
+  const vehicleNotes = notes.join(' | ');
+
+  const paymentStatus = charges.balanceDue > 0 ? 'Balance due at release' : 'Paid in full';
+
+  const newRecord = {
+    id: stockId,
+    call: callNumber,
+    direction,
+    account,
+    vehicle: vehicleDescriptor,
+    plate: plateDisplay,
+    vin: vin || '—',
+    impoundDate,
+    daysHeld,
+    total: Number(charges.grandTotal.toFixed(2)),
+    balanceDue: Number(charges.balanceDue.toFixed(2)),
+    storageLot,
+    status: direction === 'out' ? 'stock-out' : 'current',
+    holdReason,
+    contact: contact || '—',
+    releaseSteps,
+    paymentStatus,
+    vehicleColor: vehicleColor || '—',
+    vehicleNotes: vehicleNotes || 'Intake created via new impound form.'
+  };
+
+  if (invoiceNumber) {
+    newRecord.invoiceNumber = invoiceNumber;
+  }
+  if (billingNotes) {
+    newRecord.billingNotes = billingNotes;
+  }
+  if (charges.charges.length) {
+    newRecord.charges = charges.charges;
+  }
+  if (driver) {
+    newRecord.driver = driver;
+  }
+  if (truck) {
+    newRecord.truck = truck;
+  }
+  if (keyLocation) {
+    newRecord.keyLocation = keyLocation;
+  }
+
+  impoundLotRecords.unshift(newRecord);
+  resetImpoundFilters();
+
+  const targetTab = newRecord.status ?? 'current';
+  if (activeImpoundTab !== targetTab) {
+    setActiveImpoundTab(targetTab);
+  }
+  activeImpoundId = newRecord.id;
+  renderImpoundTable();
+  closeNewImpoundDialog();
+}
+
+function initNewImpoundFlow() {
+  if (!newImpoundDialog || !newImpoundForm) {
+    return;
+  }
+
+  if (newImpoundButton) {
+    newImpoundButton.addEventListener('click', openNewImpoundDialog);
+  }
+
+  newImpoundCloseButtons.forEach((button) => {
+    button.addEventListener('click', closeNewImpoundDialog);
+  });
+
+  newImpoundDialog.addEventListener('click', (event) => {
+    if (event.target === newImpoundDialog) {
+      closeNewImpoundDialog();
+    }
+  });
+
+  if (addChargeRowButton) {
+    addChargeRowButton.addEventListener('click', () => {
+      appendChargeRow();
+    });
+  }
+
+  if (impoundChargeRowsContainer) {
+    impoundChargeRowsContainer.addEventListener('click', (event) => {
+      const target = event.target instanceof HTMLElement ? event.target.closest('[data-remove-charge]') : null;
+      if (!target) return;
+      const row = target.closest('tr');
+      if (row) {
+        row.remove();
+        if (!impoundChargeRowsContainer.querySelector('[data-charge-row]')) {
+          appendChargeRow();
+        } else {
+          updateChargeSummary();
+        }
+      }
+    });
+  }
+
+  if (impoundChargeTaxesInput) {
+    impoundChargeTaxesInput.addEventListener('input', updateChargeSummary);
+  }
+  if (impoundChargePaymentInput) {
+    impoundChargePaymentInput.addEventListener('input', updateChargeSummary);
+  }
+
+  if (newImpoundCallTypeButtons.length) {
+    newImpoundCallTypeButtons.forEach((button) => {
+      button.addEventListener('click', () => {
+        const callType = button.dataset.callType ?? 'new';
+        if (newImpoundCallTypeInput) {
+          newImpoundCallTypeInput.value = callType;
+        }
+        newImpoundCallTypeButtons.forEach((otherButton) => {
+          const isActive = otherButton === button;
+          otherButton.classList.toggle('active', isActive);
+          otherButton.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+        });
+      });
+    });
+  }
+
+  newImpoundForm.addEventListener('submit', handleNewImpoundSubmit);
+}
 
 function generateMessageId() {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
@@ -1685,6 +2199,7 @@ function init() {
   renderDashboard();
   renderDispatchingModule();
   initImpoundModule();
+  initNewImpoundFlow();
   initNavigation();
   initDashboardEvents();
   initDispatchEvents();

@@ -343,7 +343,7 @@
             <p>Track vehicles on hold, view balances, and manage release requests.</p>
           </div>
           <div class="impound-actions">
-            <button type="button" class="primary-action">New Impound</button>
+            <button type="button" class="primary-action" data-open-impound>New Impound</button>
             <button type="button" class="secondary-action impound-report-action">
               Create Report
               <span aria-hidden="true" class="chevron">▾</span>
@@ -454,6 +454,311 @@
           <aside class="impound-detail" id="impound-detail"></aside>
         </section>
       </main>
+
+      <div class="impound-dialog-backdrop" id="new-impound-dialog" hidden>
+        <div class="impound-dialog" role="dialog" aria-modal="true" aria-labelledby="new-impound-title">
+          <header class="impound-dialog-header">
+            <div class="impound-dialog-title">
+              <h2 id="new-impound-title">New Impound</h2>
+              <p>Register a vehicle entering the impound lot and generate the intake paperwork.</p>
+            </div>
+            <div class="impound-dialog-header-actions">
+              <div class="form-field">
+                <label for="impound-editor">Users Editing</label>
+                <select id="impound-editor" name="editor">
+                  <option value="tsedeke">Tsedeke Girma</option>
+                  <option value="morgan">Morgan Wu</option>
+                  <option value="dispatch">Dispatch Team</option>
+                </select>
+              </div>
+              <button type="button" class="icon-button" data-close-impound aria-label="Close new impound intake">
+                <span aria-hidden="true">✕</span>
+              </button>
+            </div>
+          </header>
+
+          <form id="new-impound-form">
+            <input type="hidden" name="callType" id="new-impound-call-type" value="new" />
+            <div class="impound-dialog-body">
+              <section class="impound-dialog-section" aria-labelledby="impound-call-heading">
+                <div class="impound-section-heading">
+                  <h3 id="impound-call-heading">Call Information</h3>
+                  <p>Select the workflow and capture intake details for this impound.</p>
+                </div>
+                <div class="impound-call-types" role="group" aria-label="Call workflow type">
+                  <button type="button" class="segmented-option active" data-call-type="new" aria-pressed="true">New Call</button>
+                  <button type="button" class="segmented-option" data-call-type="completed" aria-pressed="false">Completed Call</button>
+                  <button type="button" class="segmented-option" data-call-type="schedule" aria-pressed="false">Schedule a Call</button>
+                  <button type="button" class="segmented-option" data-call-type="quote" aria-pressed="false">Quote</button>
+                </div>
+
+                <div class="impound-form-grid columns-4">
+                  <div class="form-field">
+                    <label for="impound-account">Account</label>
+                    <input
+                      type="text"
+                      id="impound-account"
+                      name="account"
+                      placeholder="Choose account"
+                      autocomplete="organization"
+                      required
+                      data-initial-focus
+                    />
+                  </div>
+                  <div class="form-field">
+                    <label for="impound-contact-name">Contact name</label>
+                    <input type="text" id="impound-contact-name" name="contactName" placeholder="Contact person" autocomplete="name" />
+                  </div>
+                  <div class="form-field">
+                    <label for="impound-contact-phone">Phone number</label>
+                    <input type="tel" id="impound-contact-phone" name="contactPhone" placeholder="(555) 000-0000" autocomplete="tel" />
+                  </div>
+                  <div class="form-field">
+                    <label for="impound-pickup">Pickup location</label>
+                    <input type="text" id="impound-pickup" name="pickupLocation" placeholder="Street or cross streets" />
+                  </div>
+                  <div class="form-field">
+                    <label for="impound-destination">Destination</label>
+                    <input type="text" id="impound-destination" name="destination" placeholder="Yard or holding area" />
+                  </div>
+                  <div class="form-field">
+                    <label for="impound-invoice-number">Invoice #</label>
+                    <input type="text" id="impound-invoice-number" name="invoiceNumber" placeholder="Invoice number" />
+                  </div>
+                  <div class="form-field">
+                    <label for="impound-reason">Impound reason</label>
+                    <select id="impound-reason" name="impoundReason">
+                      <option value="police-hold">Police hold</option>
+                      <option value="private-property">Private property tow</option>
+                      <option value="accident">Accident scene</option>
+                      <option value="abandoned">Abandoned vehicle</option>
+                      <option value="repossession">Repossession</option>
+                    </select>
+                  </div>
+                  <div class="form-field">
+                    <label for="impound-priority">Priority</label>
+                    <select id="impound-priority" name="priority">
+                      <option value="normal" selected>Normal</option>
+                      <option value="rush">Rush</option>
+                      <option value="after-hours">After hours</option>
+                    </select>
+                  </div>
+                  <label class="checkbox-field">
+                    <input type="checkbox" name="emergency" value="yes" />
+                    <span>Emergency</span>
+                  </label>
+                </div>
+              </section>
+
+              <section class="impound-dialog-section" aria-labelledby="impound-vehicle-heading">
+                <div class="impound-section-heading">
+                  <h3 id="impound-vehicle-heading">Vehicle Information</h3>
+                  <p>Enter the vehicle details that will appear on the impound inventory.</p>
+                </div>
+
+                <div class="impound-form-grid columns-4">
+                  <div class="form-field">
+                    <label for="impound-stock">Stock #</label>
+                    <input type="text" id="impound-stock" name="stockId" placeholder="STK-####" />
+                  </div>
+                  <div class="form-field">
+                    <label for="impound-call">Call #</label>
+                    <input type="text" id="impound-call" name="callNumber" placeholder="TB-####" />
+                  </div>
+                  <div class="form-field">
+                    <label for="impound-direction">In / Out</label>
+                    <select id="impound-direction" name="direction">
+                      <option value="in" selected>In</option>
+                      <option value="out">Out</option>
+                    </select>
+                  </div>
+                  <div class="form-field">
+                    <label for="impound-date">Impound date</label>
+                    <input type="date" id="impound-date" name="impoundDate" />
+                  </div>
+                </div>
+
+                <div class="impound-form-grid columns-4">
+                  <div class="form-field">
+                    <label for="impound-year">Year</label>
+                    <input type="number" id="impound-year" name="vehicleYear" min="1900" max="2099" placeholder="2024" />
+                  </div>
+                  <div class="form-field">
+                    <label for="impound-make">Make</label>
+                    <input type="text" id="impound-make" name="vehicleMake" placeholder="Ford" />
+                  </div>
+                  <div class="form-field">
+                    <label for="impound-model">Model</label>
+                    <input type="text" id="impound-model" name="vehicleModel" placeholder="Explorer" />
+                  </div>
+                  <div class="form-field">
+                    <label for="impound-type">Vehicle type</label>
+                    <select id="impound-type" name="vehicleType">
+                      <option value="light" selected>Light</option>
+                      <option value="medium">Medium</option>
+                      <option value="heavy">Heavy</option>
+                      <option value="motorcycle">Motorcycle</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div class="impound-form-grid columns-4">
+                  <div class="form-field">
+                    <label for="impound-color">Color</label>
+                    <input type="text" id="impound-color" name="vehicleColor" placeholder="Color" />
+                  </div>
+                  <div class="form-field">
+                    <label for="impound-plate">License plate</label>
+                    <input type="text" id="impound-plate" name="plate" placeholder="ABC 1234" />
+                  </div>
+                  <div class="form-field">
+                    <label for="impound-plate-state">State</label>
+                    <select id="impound-plate-state" name="plateState">
+                      <option value="">Select state</option>
+                      <option value="MI">MI</option>
+                      <option value="OH">OH</option>
+                      <option value="IN">IN</option>
+                      <option value="IL">IL</option>
+                      <option value="WI">WI</option>
+                    </select>
+                  </div>
+                  <div class="form-field">
+                    <label for="impound-vin">VIN</label>
+                    <input type="text" id="impound-vin" name="vin" placeholder="17 characters" />
+                  </div>
+                </div>
+
+                <div class="impound-form-grid columns-4">
+                  <div class="form-field">
+                    <label for="impound-odometer">Odometer</label>
+                    <input type="number" id="impound-odometer" name="odometer" placeholder="Miles" min="0" step="1" />
+                  </div>
+                  <div class="form-field">
+                    <label for="impound-drivable">Drivable</label>
+                    <select id="impound-drivable" name="drivable">
+                      <option value="yes" selected>Yes</option>
+                      <option value="no">No</option>
+                      <option value="unknown">Unknown</option>
+                    </select>
+                  </div>
+                  <label class="checkbox-field">
+                    <input type="checkbox" id="impound-has-keys" name="hasKeys" value="yes" checked />
+                    <span>Have Keys</span>
+                  </label>
+                  <div class="form-field">
+                    <label for="impound-key-location">Key location</label>
+                    <input type="text" id="impound-key-location" name="keyLocation" placeholder="Locker or driver" />
+                  </div>
+                </div>
+
+                <div class="impound-form-grid columns-3">
+                  <div class="form-field">
+                    <label for="impound-driver">Driver</label>
+                    <select id="impound-driver" name="driver">
+                      <option value="">Choose a driver</option>
+                      <option value="Ralph Simmons">Ralph Simmons</option>
+                      <option value="Amelia Cross">Amelia Cross</option>
+                      <option value="Jordan Blake">Jordan Blake</option>
+                      <option value="Marta Diaz">Marta Diaz</option>
+                    </select>
+                  </div>
+                  <div class="form-field">
+                    <label for="impound-truck">Driver/Truck</label>
+                    <select id="impound-truck" name="truck">
+                      <option value="">Choose a truck</option>
+                      <option value="Unit 12 · Heavy Duty">Unit 12 · Heavy Duty</option>
+                      <option value="Unit 7 · Flatbed">Unit 7 · Flatbed</option>
+                      <option value="Unit 4 · Wrecker">Unit 4 · Wrecker</option>
+                      <option value="Unit 9 · Wheel Lift">Unit 9 · Wheel Lift</option>
+                    </select>
+                  </div>
+                  <div class="form-field">
+                    <label for="impound-storage-lot">Storage lot</label>
+                    <input type="text" id="impound-storage-lot" name="storageLot" placeholder="Lot or row" />
+                  </div>
+                </div>
+              </section>
+
+              <section class="impound-dialog-section" aria-labelledby="impound-notes-heading">
+                <div class="impound-section-heading">
+                  <h3 id="impound-notes-heading">Notes</h3>
+                  <p>Document hold reasons, billing notes, and follow-up instructions.</p>
+                </div>
+                <div class="impound-form-grid columns-2">
+                  <div class="form-field">
+                    <label for="impound-hold-reason">Hold reason notes</label>
+                    <textarea id="impound-hold-reason" name="holdReason" rows="3" placeholder="Police hold, paperwork required, etc."></textarea>
+                  </div>
+                  <div class="form-field">
+                    <label for="impound-vehicle-notes">Vehicle notes</label>
+                    <textarea id="impound-vehicle-notes" name="vehicleNotes" rows="3" placeholder="Notate damage, personal items, or key location."></textarea>
+                  </div>
+                  <div class="form-field">
+                    <label for="impound-billing-notes">Billing notes</label>
+                    <textarea id="impound-billing-notes" name="billingNotes" rows="3" placeholder="Notes for billing or release teams"></textarea>
+                  </div>
+                </div>
+              </section>
+
+              <section class="impound-dialog-section" aria-labelledby="impound-invoice-heading">
+                <div class="impound-section-heading">
+                  <h3 id="impound-invoice-heading">Invoice Charges</h3>
+                  <p>Track charges that contribute to the impound balance.</p>
+                </div>
+
+                <div class="impound-invoice">
+                  <table class="impound-invoice-table">
+                    <thead>
+                      <tr>
+                        <th scope="col">Item</th>
+                        <th scope="col">Quantity</th>
+                        <th scope="col">Rate</th>
+                        <th scope="col">Total</th>
+                        <th scope="col" class="sr-only">Remove</th>
+                      </tr>
+                    </thead>
+                    <tbody id="impound-charge-rows"></tbody>
+                  </table>
+                  <div class="impound-invoice-actions">
+                    <button type="button" class="secondary-action" id="impound-add-charge">Add charge</button>
+                  </div>
+                  <div class="impound-invoice-summary">
+                    <div class="summary-row">
+                      <span>Subtotal</span>
+                      <span id="impound-charge-subtotal">$0.00</span>
+                    </div>
+                    <div class="form-field">
+                      <label for="impound-charge-taxes">Taxes &amp; fees</label>
+                      <input type="number" id="impound-charge-taxes" name="chargeTaxes" min="0" step="0.01" value="0" />
+                    </div>
+                    <div class="form-field">
+                      <label for="impound-charge-payment">Payments</label>
+                      <input type="number" id="impound-charge-payment" name="chargePayments" min="0" step="0.01" value="0" />
+                    </div>
+                    <label class="checkbox-field include-billing">
+                      <input type="checkbox" name="includeBillingNotes" value="yes" />
+                      <span>Include billing notes on invoice</span>
+                    </label>
+                    <div class="summary-row accent">
+                      <span>Grand Total</span>
+                      <span id="impound-charge-grand-total">$0.00</span>
+                    </div>
+                    <div class="summary-row accent">
+                      <span>Balance Due</span>
+                      <span id="impound-charge-balance-due">$0.00</span>
+                    </div>
+                  </div>
+                </div>
+              </section>
+            </div>
+
+            <footer class="impound-dialog-footer">
+              <button type="button" class="secondary-action" data-close-impound>Cancel</button>
+              <button type="submit" class="primary-action">Create Impound</button>
+            </footer>
+          </form>
+        </div>
+      </div>
 
       <footer class="footer">
         <div>© 2024 Towbook Cloud. All rights reserved.</div>
