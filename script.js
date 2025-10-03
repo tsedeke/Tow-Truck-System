@@ -11,6 +11,9 @@ const impoundFilterInputs = document.querySelectorAll('[data-impound-filter]');
 const impoundSearchFormEl = document.querySelector('#impound-search-form');
 const impoundSearchInputEl = document.querySelector('#impound-search-input');
 const impoundTabButtons = document.querySelectorAll('[data-impound-tab]');
+const newImpoundButton = document.querySelector('#new-impound-button');
+const newImpoundModalEl = document.querySelector('#new-impound-modal');
+const newImpoundFormEl = newImpoundModalEl?.querySelector('form');
 
 const navLinks = document.querySelectorAll('.nav-link[data-view-target]');
 const views = document.querySelectorAll('.view[data-view]');
@@ -41,6 +44,8 @@ const activeThreadStatusEl = document.querySelector('#active-thread-status');
 
 const surveyFilterForm = document.querySelector('#survey-filter-form');
 const surveyListEl = document.querySelector('#survey-list');
+
+let activeModalEl = null;
 
 const statusLabels = {
   waiting: 'Waiting',
@@ -978,6 +983,79 @@ function handleImpoundFilterInput(event) {
   renderImpoundTable();
 }
 
+function openModal(modalEl) {
+  if (!modalEl) return;
+  modalEl.removeAttribute('hidden');
+  modalEl.setAttribute('aria-hidden', 'false');
+  document.body.classList.add('modal-open');
+  activeModalEl = modalEl;
+}
+
+function closeModal(modalEl) {
+  if (!modalEl) return;
+  modalEl.setAttribute('aria-hidden', 'true');
+  modalEl.setAttribute('hidden', '');
+  if (activeModalEl === modalEl) {
+    activeModalEl = null;
+  }
+
+  const hasOpenModal = document.querySelector('.modal:not([hidden])');
+  if (!hasOpenModal) {
+    document.body.classList.remove('modal-open');
+  }
+}
+
+function isModalOpen(modalEl) {
+  return Boolean(modalEl && !modalEl.hasAttribute('hidden'));
+}
+
+function initNewImpoundModal() {
+  if (!newImpoundButton || !newImpoundModalEl) return;
+
+  const dismissElements = newImpoundModalEl.querySelectorAll('[data-modal-dismiss]');
+
+  const handleOpen = () => {
+    openModal(newImpoundModalEl);
+    if (newImpoundFormEl) {
+      newImpoundFormEl.reset();
+      const firstField = newImpoundFormEl.querySelector('input, select, textarea');
+      if (firstField instanceof HTMLElement) {
+        setTimeout(() => firstField.focus(), 0);
+      }
+    }
+  };
+
+  const handleClose = () => {
+    closeModal(newImpoundModalEl);
+    newImpoundFormEl?.reset();
+  };
+
+  newImpoundButton.addEventListener('click', handleOpen);
+
+  dismissElements.forEach((element) => {
+    element.addEventListener('click', handleClose);
+  });
+
+  newImpoundModalEl.addEventListener('click', (event) => {
+    if (event.target === newImpoundModalEl) {
+      handleClose();
+    }
+  });
+
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && isModalOpen(newImpoundModalEl)) {
+      handleClose();
+    }
+  });
+
+  if (newImpoundFormEl) {
+    newImpoundFormEl.addEventListener('submit', (event) => {
+      event.preventDefault();
+      handleClose();
+    });
+  }
+}
+
 function initImpoundModule() {
   if (!impoundTableBodyEl || !impoundDetailEl) return;
 
@@ -1685,6 +1763,7 @@ function init() {
   renderDashboard();
   renderDispatchingModule();
   initImpoundModule();
+  initNewImpoundModal();
   initNavigation();
   initDashboardEvents();
   initDispatchEvents();

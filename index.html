@@ -343,7 +343,7 @@
             <p>Track vehicles on hold, view balances, and manage release requests.</p>
           </div>
           <div class="impound-actions">
-            <button type="button" class="primary-action">New Impound</button>
+            <button type="button" class="primary-action" id="new-impound-button">New Impound</button>
             <button type="button" class="secondary-action impound-report-action">
               Create Report
               <span aria-hidden="true" class="chevron">▾</span>
@@ -463,6 +463,77 @@
           <a href="#">Support</a>
         </div>
       </footer>
+    </div>
+
+    <div class="modal" id="new-impound-modal" hidden aria-hidden="true">
+      <div class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="new-impound-title">
+        <header class="modal-header">
+          <div>
+            <h2 id="new-impound-title">New Impound</h2>
+            <p class="modal-subtitle">Record vehicle intake details to create a new impound entry.</p>
+          </div>
+          <button type="button" class="modal-close" aria-label="Close" data-modal-dismiss>&times;</button>
+        </header>
+        <form class="new-impound-form">
+          <div class="modal-body">
+            <div class="new-impound-grid">
+              <div class="form-field">
+                <label for="new-impound-stock">Stock #</label>
+                <input id="new-impound-stock" name="stockNumber" type="text" placeholder="STK-2301" />
+              </div>
+              <div class="form-field">
+                <label for="new-impound-call">Call #</label>
+                <input id="new-impound-call" name="callNumber" type="text" placeholder="TB-2105" />
+              </div>
+              <div class="form-field">
+                <label for="new-impound-direction">Direction</label>
+                <select id="new-impound-direction" name="direction">
+                  <option value="in">Stock In</option>
+                  <option value="out">Stock Out</option>
+                  <option value="hold">Hold / Account</option>
+                </select>
+              </div>
+              <div class="form-field">
+                <label for="new-impound-account">Account</label>
+                <input id="new-impound-account" name="account" type="text" placeholder="City of Detroit PD" />
+              </div>
+              <div class="form-field">
+                <label for="new-impound-vehicle">Vehicle</label>
+                <input id="new-impound-vehicle" name="vehicle" type="text" placeholder="2018 Ford Explorer" />
+              </div>
+              <div class="form-field">
+                <label for="new-impound-plate">Plate</label>
+                <input id="new-impound-plate" name="plate" type="text" placeholder="PDX 4287" />
+              </div>
+              <div class="form-field">
+                <label for="new-impound-vin">VIN</label>
+                <input id="new-impound-vin" name="vin" type="text" placeholder="1FM5K8AR7JGA42158" />
+              </div>
+              <div class="form-field">
+                <label for="new-impound-date">Impound Date</label>
+                <input id="new-impound-date" name="impoundDate" type="date" />
+              </div>
+              <div class="form-field">
+                <label for="new-impound-lot">Storage Lot</label>
+                <input id="new-impound-lot" name="storageLot" type="text" placeholder="Main Lot · Row 3" />
+              </div>
+            </div>
+            <div class="form-field full-width">
+              <label for="new-impound-notes">Notes</label>
+              <textarea
+                id="new-impound-notes"
+                name="notes"
+                rows="4"
+                placeholder="Include hold reasons, contacts, or release steps"
+              ></textarea>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="secondary-action" data-modal-dismiss>Cancel</button>
+            <button type="submit" class="primary-action">Create Impound</button>
+          </div>
+        </form>
+      </div>
     </div>
 
     <script src="script.js" type="module"></script>
